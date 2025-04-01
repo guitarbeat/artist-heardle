@@ -6,7 +6,7 @@ This is a spin-off of the original [Heardle](https://www.heardle.app/) but for K
 
 The code for this project is remixed from the [ZAYN Heardle](https://zayn-heardle.glitch.me/) (by [@eggtartemily](https://twitter.com/eggtartemily)) and [Taylor Swift Heardle](https://taylor-swift-heardle.glitch.me/) projects.
 
-If you have any questions DM me on Twitter at [@derekahmedzai](https://twitter.com/derekahmedzai). I also made the [Harry Styles Heardle](https://harry-styles-heardle.glitch.me), also on [Glitch](https://glitch.com/edit/#!/harry-styles-heardle)
+If you have any questions, you can contact me at [alw.lol](https://alw.lol). This project was updated at the request of Dilara.
 
 ### How to create your own custom Heardle
 
