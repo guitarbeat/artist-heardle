@@ -1,0 +1,890 @@
+<!DOCTYPE html><html lang="sv"><head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Aaron's Music Heardle</title>
+        <link rel="stylesheet" type="text/css" href="/css/heardle-theme.css">
+        <link rel="icon" href="../icon.png">
+        <script src="https://kit.fontawesome.com/4ce1eac851.js" crossorigin="anonymous"></script>
+        <script src="https://sdk.scdn.co/spotify-player.js"></script>
+        <script src="https://unpkg.com/spotify-web-api-js"></script>
+        <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+        <script type="module" src="/js/player.js"></script>
+        <script type="module" src="/js/script.js"></script>
+        <script type="module" src="/js/startup.js"></script>
+        <script type="module" src="/js/auth-redirect.js"></script>
+        <script id="access-token">
+          var accessToken = "BQCRYaTt3XSUMi1W5ujW-4T-_lCE-yUKH_XC7zrVVC_xznkyVhnSUj3kQPawLIvODPubzpUdzZTinOFvkcYuc7CeFLBwgu-PT66LPPybuQHuanl623QIZzWfLo2rWck9tqht9eDwy_THPWJQeIhBIWswjXO0XL7RiWMfEvCcxswJMzhRagXOsfm-n-lcEwXJWZV1Qxje95S4fCRDBT6GaQF8SQ0E4Bn1bD-NzPP3BVq42MnmRgU70kLK-Z7gkxwwLlNnxMpa1mculgrbrdmB5UEa-BdATCyT";
+          localStorage.setItem('access_token', "BQCRYaTt3XSUMi1W5ujW-4T-_lCE-yUKH_XC7zrVVC_xznkyVhnSUj3kQPawLIvODPubzpUdzZTinOFvkcYuc7CeFLBwgu-PT66LPPybuQHuanl623QIZzWfLo2rWck9tqht9eDwy_THPWJQeIhBIWswjXO0XL7RiWMfEvCcxswJMzhRagXOsfm-n-lcEwXJWZV1Qxje95S4fCRDBT6GaQF8SQ0E4Bn1bD-NzPP3BVq42MnmRgU70kLK-Z7gkxwwLlNnxMpa1mculgrbrdmB5UEa-BdATCyT");
+        </script>
+        <style>
+            /* Navigation bar styling */
+            #top-nav {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                width: 100%;
+                padding: 10px 15px;
+                background-color: var(--color-bg);
+                border-bottom: 1px solid var(--color-line);
+            }
+            
+            .nav-left, .nav-right {
+                display: flex;
+                align-items: center;
+            }
+            
+            .nav-icon {
+                background: none;
+                border: none;
+                color: var(--color-fg);
+                font-size: 1.5rem;
+                padding: 8px;
+                margin: 0 5px;
+                cursor: pointer;
+                opacity: 0.8;
+                transition: all 0.2s ease;
+            }
+            
+            .nav-icon:hover {
+                opacity: 1;
+                transform: scale(1.1);
+                color: var(--color-positive);
+            }
+            
+            .game-title h1 {
+                font-size: 1.2rem;
+                text-align: center;
+                margin: 0;
+                line-height: 1.2;
+                font-family: 'Noto Serif Display', serif;
+                letter-spacing: 0.05em;
+            }
+            
+            /* Hide regular title since we now have it in the nav */
+            #title-div h1 {
+                display: none;
+            }
+            
+            /* Move other controls to align properly */
+            #give-up, #back-to-menu {
+                margin-top: 15px;
+            }
+        </style>
+    </head>
+    <body>
+        <main>
+            <!-- Navigation icons bar - like in original Heardle -->
+            <nav id="top-nav">
+                <div class="nav-left">
+                    <button id="give-up" class="nav-icon">
+                        <i class="fa-solid fa-flag"></i>
+                    </button>
+                    <button id="stats-button" class="nav-icon">
+                        <i class="fa-solid fa-chart-simple"></i>
+                    </button>
+                </div>
+                <div class="game-title">
+                    <h1 id="current-playlist-name">Loading playlist...</h1>
+                </div>
+                <div class="nav-right">
+                    <button id="help-button" class="nav-icon">
+                        <i class="fa-solid fa-circle-question"></i>
+                    </button>
+                    <button id="back-to-menu" class="nav-icon">
+                        <i class="fa-solid fa-arrow-right-from-bracket"></i>
+                    </button>
+                </div>
+            </nav>
+
+            <!-- Add admin section after the top-nav -->
+            <div id="admin-section" class="admin-section" style="display: none;">
+                <div class="admin-content">
+                    <h2>Admin Controls</h2>
+                    <div class="admin-form">
+                        <div class="form-group">
+                            <label for="default-playlist-id">Default Playlist ID:</label>
+                            <input type="text" id="default-playlist-id" placeholder="Enter Spotify playlist ID">
+                        </div>
+                        <div class="form-group checkbox-group">
+                            <label>
+                                <input type="checkbox" id="enforce-playlist">
+                                Enforce this playlist for all users
+                            </label>
+                        </div>
+                        <button id="save-default-playlist" class="action-button">Save Default Playlist</button>
+                        <button id="lookup-playlist" class="action-button">Lookup Playlist Info</button>
+                    </div>
+                    <div id="playlist-info" class="playlist-info"></div>
+                    <div id="admin-message" class="admin-message"></div>
+                </div>
+            </div>
+
+            <div id="user">
+                <img src="../icon.png">
+                <div>
+                    <p>Logged in as</p>
+                    <p>Name</p>
+                </div>
+                <div id="logout-button">
+                    <button onclick="logout()">Logout</button>
+                </div>
+            </div>
+            <section id="top">
+                <div id="title-div">
+                    <div id="give-up">GIVE UP</div>
+                    <h1>Aaron's Music Heardle</h1>
+                    <div id="back-to-menu">BACK TO MENU</div>
+                </div>
+                <div id="playlist-info">
+                    <p>Current Playlist: <span id="current-playlist-name">Loading...</span></p>
+                </div>
+                <div id="guesses">
+                    <div>
+                        <i class=""></i>
+                        <p>Test - test</p>
+                    </div>
+                    <div>
+                        <i class=""></i>
+                        <p>Test - test</p>
+                    </div>
+                    <div>
+                        <i class=""></i>
+                        <p>Test - test</p>
+                    </div>
+                    <div>
+                        <i class=""></i>
+                        <p>Test - test</p>
+                    </div>
+                    <div>
+                        <i class=""></i>
+                        <p>Test - test</p>
+                    </div>
+                    <div>
+                        <i class=""></i>
+                        <p>Test - test</p>
+                    </div>
+                </div>
+            </section>
+            <section id="reveal">
+                <p id="song">[Song] - [artist]</p>
+                <div id="statsDiv">
+                    <p>Better luck next time!</p>
+                    <div id="stats">
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                    </div>
+                </div>
+                <div id="timeDiv" style="visibility: hidden;">
+                    <p>Next hördel in:</p>
+                    <p>00:00:00</p>
+                </div>
+                <button id="playAgain">Play again</button>
+            </section>
+            <section id="bottom">
+                <div id="time">
+                    <div id="time-parts">
+                        <div id="currentTime"></div>
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                        <div></div>
+                    </div>
+                </div>
+                <div id="play">
+                    <p>0:00</p>
+                    <i class="fa-solid fa-play"></i>
+                    <div class="music-playing" style="display: none;">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </div>
+                    <p>0:16</p>
+                </div>
+                <div id="textfield">
+                    <div id="alternatives">
+                        <div>
+                        </div>
+                    </div>
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <textarea placeholder="Enter an artist or a song!"></textarea>
+                    <i class="fa-solid fa-xmark"></i>
+                </div>
+                <div id="buttons">
+                    <div id="skip">SKIP (+1s)</div>
+                    <p id="streak">STREAK: 0</p>
+                    <div id="submit">SUBMIT</div>
+                </div>
+            </section>
+            
+            <!-- Stats Modal -->
+            <div id="stats-modal" style="display: none;">
+                <div class="modal-background"></div>
+                <div class="modal-content">
+                    <div class="stats-container">
+                        <h2>Your Stats</h2>
+                        <div class="stats-summary">
+                            <div class="stats-item">
+                                <div class="stats-number">0</div>
+                                <div class="stats-label">Played</div>
+                            </div>
+                            <div class="stats-item">
+                                <div class="stats-number">0%</div>
+                                <div class="stats-label">Win %</div>
+                            </div>
+                            <div class="stats-item">
+                                <div class="stats-number">0</div>
+                                <div class="stats-label">Current Streak</div>
+                            </div>
+                            <div class="stats-item">
+                                <div class="stats-number">0</div>
+                                <div class="stats-label">Max Streak</div>
+                            </div>
+                        </div>
+                        
+                        <h3>Guess Distribution</h3>
+                        <div class="guess-distribution">
+                            <!-- Will be populated by JavaScript -->
+                        </div>
+                        
+                        <div class="modal-actions">
+                            <button id="close-stats">Close</button>
+                            <button id="share-stats">Share</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </main>
+        <div style="visibility: hidden;"> <!-- just a few fixes for bug reasons -->
+            <button id="button"></button>
+            <select id="select"></select>
+        </div>
+        
+        <script>
+            // Logout function to clear tokens and redirect to login
+            function logout() {
+                // Clear all tokens and user data
+                localStorage.removeItem('access_token');
+                localStorage.removeItem('refresh_token');
+                localStorage.removeItem('userData');
+                localStorage.removeItem('adminSettings');
+                
+                // Clear any other game-related data
+                localStorage.removeItem('value');
+                localStorage.removeItem('id');
+                localStorage.removeItem('uri');
+                localStorage.removeItem('song');
+                localStorage.removeItem('adminPlaylistActive');
+                
+                // Redirect to home/login
+                window.location.href = '/';
+            }
+            
+            // Initialize stats tracking
+            document.addEventListener('DOMContentLoaded', function() {
+                // Stats object structure
+                if (!localStorage.getItem('heardleStats')) {
+                    const initialStats = {
+                        gamesPlayed: 0,
+                        gamesWon: 0,
+                        currentStreak: 0,
+                        maxStreak: 0,
+                        guessDistribution: [0, 0, 0, 0, 0, 0],
+                        lastPlayed: null
+                    };
+                    localStorage.setItem('heardleStats', JSON.stringify(initialStats));
+                }
+                
+                // Toggle music playing animation when play button is clicked
+                document.querySelector('#play i').addEventListener('click', function() {
+                    const musicPlaying = document.querySelector('.music-playing');
+                    if (musicPlaying.style.display === 'none') {
+                        musicPlaying.style.display = 'flex';
+                        this.classList.remove('fa-play');
+                        this.classList.add('fa-pause');
+                    } else {
+                        musicPlaying.style.display = 'none';
+                        this.classList.remove('fa-pause');
+                        this.classList.add('fa-play');
+                    }
+                });
+                
+                // Open stats modal when clicking on streak counter
+                document.getElementById('streak').addEventListener('click', function() {
+                    openStatsModal();
+                });
+                
+                // Close stats modal
+                document.getElementById('close-stats').addEventListener('click', function() {
+                    document.getElementById('stats-modal').style.display = 'none';
+                });
+                
+                // Share stats
+                document.getElementById('share-stats').addEventListener('click', function() {
+                    shareStats();
+                });
+            });
+            
+            // Function to open stats modal and populate with current stats
+            function openStatsModal() {
+                const statsModal = document.getElementById('stats-modal');
+                const stats = JSON.parse(localStorage.getItem('heardleStats') || '{"gamesPlayed":0,"gamesWon":0,"currentStreak":0,"maxStreak":0,"guessDistribution":[0,0,0,0,0,0]}');
+                
+                // Update summary stats
+                document.querySelector('.stats-item:nth-child(1) .stats-number').textContent = stats.gamesPlayed;
+                const winPercentage = stats.gamesPlayed > 0 ? Math.round((stats.gamesWon / stats.gamesPlayed) * 100) : 0;
+                document.querySelector('.stats-item:nth-child(2) .stats-number').textContent = winPercentage + '%';
+                document.querySelector('.stats-item:nth-child(3) .stats-number').textContent = stats.currentStreak;
+                document.querySelector('.stats-item:nth-child(4) .stats-number').textContent = stats.maxStreak;
+                
+                // Create guess distribution
+                const distributionContainer = document.querySelector('.guess-distribution');
+                distributionContainer.innerHTML = '';
+                
+                // Find max value for scaling
+                const maxGuesses = Math.max(...stats.guessDistribution, 1);
+                
+                // Create bar for each guess number
+                for (let i = 0; i < stats.guessDistribution.length; i++) {
+                    const guessCount = stats.guessDistribution[i];
+                    const percentage = Math.round((guessCount / maxGuesses) * 100) || 0;
+                    
+                    const row = document.createElement('div');
+                    row.className = 'stats-row';
+                    row.innerHTML = `
+                        <div class="stats-label">${i + 1}</div>
+                        <div class="stats-bar">
+                            <div class="stats-bar-fill" style="width: ${percentage}%"></div>
+                            <div class="stats-count">${guessCount}</div>
+                        </div>
+                    `;
+                    distributionContainer.appendChild(row);
+                }
+                
+                // Show the modal
+                statsModal.style.display = 'block';
+            }
+            
+            // Function to share stats
+            function shareStats() {
+                const stats = JSON.parse(localStorage.getItem('heardleStats') || '{"gamesPlayed":0,"gamesWon":0,"currentStreak":0,"maxStreak":0,"guessDistribution":[0,0,0,0,0,0]}');
+                const playlistName = document.getElementById('current-playlist-name').textContent;
+                
+                let shareText = `Aaron's Music Heardle (${playlistName})\n\n`;
+                shareText += `Played: ${stats.gamesPlayed}  |  Win %: ${stats.gamesPlayed > 0 ? Math.round((stats.gamesWon / stats.gamesPlayed) * 100) : 0}%\n`;
+                shareText += `Current Streak: ${stats.currentStreak}  |  Max Streak: ${stats.maxStreak}\n\n`;
+                
+                shareText += `Guess Distribution:\n`;
+                for (let i = 0; i < stats.guessDistribution.length; i++) {
+                    const guessCount = stats.guessDistribution[i];
+                    const barLength = Math.min(Math.round(guessCount / Math.max(...stats.guessDistribution) * 10), 10);
+                    const bar = '■'.repeat(barLength || 0);
+                    shareText += `${i + 1}: ${bar} ${guessCount}\n`;
+                }
+                
+                // Try to copy to clipboard
+                if (navigator.clipboard) {
+                    navigator.clipboard.writeText(shareText)
+                        .then(() => alert('Stats copied to clipboard!'))
+                        .catch(() => {
+                            // Fallback
+                            const textarea = document.createElement('textarea');
+                            textarea.value = shareText;
+                            document.body.appendChild(textarea);
+                            textarea.select();
+                            document.execCommand('copy');
+                            document.body.removeChild(textarea);
+                            alert('Stats copied to clipboard!');
+                        });
+                } else {
+                    alert(shareText);
+                }
+            }
+            
+            // Additional CSS for the stats modal
+            const modalStyle = document.createElement('style');
+            modalStyle.textContent = `
+                #stats-modal {
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    z-index: 1000;
+                }
+                
+                .modal-background {
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0, 0, 0, 0.7);
+                }
+                
+                .modal-content {
+                    position: relative;
+                    max-width: 500px;
+                    margin: 50px auto;
+                    z-index: 1001;
+                }
+                
+                .stats-container {
+                    background-color: var(--color-bg);
+                    border: 1px solid var(--color-line);
+                    border-radius: 8px;
+                    padding: 20px;
+                }
+                
+                .stats-container h2 {
+                    text-align: center;
+                    margin-bottom: 20px;
+                    font-family: 'Noto Serif Display', serif;
+                }
+                
+                .stats-container h3 {
+                    margin: 20px 0 10px;
+                }
+                
+                .stats-summary {
+                    display: flex;
+                    justify-content: space-around;
+                    text-align: center;
+                    margin-bottom: 20px;
+                }
+                
+                .stats-item {
+                    flex: 1;
+                }
+                
+                .stats-number {
+                    font-size: 24px;
+                    font-weight: bold;
+                    color: var(--color-positive);
+                }
+                
+                .modal-actions {
+                    display: flex;
+                    justify-content: space-between;
+                    margin-top: 20px;
+                }
+                
+                #close-stats, #share-stats {
+                    flex: 1;
+                    margin: 0 5px;
+                }
+                
+                #share-stats {
+                    background-color: var(--color-positive);
+                    color: var(--color-bg);
+                }
+            `;
+            document.head.appendChild(modalStyle);
+        </script>
+        
+        <script>
+            // Handle navigation icons functionality
+            document.addEventListener('DOMContentLoaded', function() {
+                // Heart button toggle
+                const heartButton = document.getElementById('heart-button');
+                heartButton.addEventListener('click', function() {
+                    this.classList.toggle('active');
+                    const icon = this.querySelector('i');
+                    
+                    if (icon.classList.contains('fas')) {
+                        icon.classList.remove('fas');
+                        icon.classList.add('far'); // outlined heart
+                    } else {
+                        icon.classList.remove('far');
+                        icon.classList.add('fas'); // filled heart
+                    }
+                });
+                
+                // Stats button - use existing stats modal
+                document.getElementById('stats-button').addEventListener('click', function() {
+                    openStatsModal();
+                });
+                
+                // Info button - show how to play
+                document.getElementById('info-button').addEventListener('click', function() {
+                    showInfoModal();
+                });
+                
+                // Help button - about/help info
+                document.getElementById('help-button').addEventListener('click', function() {
+                    showHelpModal();
+                });
+                
+                // Create the info modal
+                function showInfoModal() {
+                    // Create modal if it doesn't exist
+                    let infoModal = document.getElementById('info-modal');
+                    if (!infoModal) {
+                        infoModal = document.createElement('div');
+                        infoModal.id = 'info-modal';
+                        infoModal.className = 'modal';
+                        infoModal.innerHTML = `
+                            <div class="modal-background"></div>
+                            <div class="modal-content">
+                                <div class="modal-inner">
+                                    <h2>How to Play</h2>
+                                    <ul>
+                                        <li>Listen to the intro, then find the correct song in the playlist</li>
+                                        <li>Skipped or incorrect attempts unlock more of the intro</li>
+                                        <li>Answer within 6 tries and you win!</li>
+                                    </ul>
+                                    <h3>Tips</h3>
+                                    <ul>
+                                        <li>A new song is available daily</li>
+                                        <li>Type in the search box to find songs</li>
+                                        <li>You can click on the timeline to scrub through the clip</li>
+                                    </ul>
+                                    <div class="modal-actions">
+                                        <button id="close-info">Got it!</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        document.body.appendChild(infoModal);
+                        
+                        // Add event listener to close button
+                        document.getElementById('close-info').addEventListener('click', function() {
+                            infoModal.style.display = 'none';
+                        });
+                    }
+                    
+                    // Show the modal
+                    infoModal.style.display = 'block';
+                }
+                
+                // Create the help modal
+                function showHelpModal() {
+                    // Create modal if it doesn't exist
+                    let helpModal = document.getElementById('help-modal');
+                    if (!helpModal) {
+                        helpModal = document.createElement('div');
+                        helpModal.id = 'help-modal';
+                        helpModal.className = 'modal';
+                        helpModal.innerHTML = `
+                            <div class="modal-background"></div>
+                            <div class="modal-content">
+                                <div class="modal-inner">
+                                    <h2>About Aaron's Music Heardle</h2>
+                                    <p>This is Aaron's version of the popular Heardle game.</p>
+                                    <p>Created by Aaron, inspired by the original Heardle.</p>
+                                    <h3>Credits</h3>
+                                    <p>Powered by Spotify API.</p>
+                                    <p>Thanks for playing!</p>
+                                    <div class="modal-actions">
+                                        <button id="close-help">Close</button>
+                                    </div>
+                                </div>
+                            </div>
+                        `;
+                        document.body.appendChild(helpModal);
+                        
+                        // Add event listener to close button
+                        document.getElementById('close-help').addEventListener('click', function() {
+                            helpModal.style.display = 'none';
+                        });
+                    }
+                    
+                    // Show the modal
+                    helpModal.style.display = 'block';
+                }
+                
+                // Close modals when clicking outside
+                window.addEventListener('click', function(event) {
+                    const modals = document.querySelectorAll('.modal');
+                    modals.forEach(modal => {
+                        if (event.target === modal.querySelector('.modal-background')) {
+                            modal.style.display = 'none';
+                        }
+                    });
+                });
+            });
+        </script>
+        
+        <!-- Additional CSS for modals -->
+        <style>
+            /* Styling for the additional modals */
+            .modal {
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                z-index: 1000;
+                display: none;
+            }
+            
+            .modal-background {
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0, 0, 0, 0.7);
+            }
+            
+            .modal-content {
+                position: relative;
+                max-width: 500px;
+                margin: 50px auto;
+                z-index: 1001;
+            }
+            
+            .modal-inner {
+                background-color: var(--color-bg);
+                border: 1px solid var(--color-line);
+                border-radius: 8px;
+                padding: 20px;
+                color: var(--color-fg);
+            }
+            
+            .modal-inner h2 {
+                text-align: center;
+                margin-bottom: 20px;
+                font-family: 'Noto Serif Display', serif;
+            }
+            
+            .modal-inner h3 {
+                margin: 20px 0 10px;
+            }
+            
+            .modal-inner ul {
+                padding-left: 20px;
+                margin-bottom: 15px;
+            }
+            
+            .modal-inner li {
+                margin-bottom: 8px;
+            }
+            
+            .modal-inner p {
+                margin-bottom: 10px;
+                line-height: 1.4;
+            }
+            
+            .modal-actions {
+                display: flex;
+                justify-content: center;
+                margin-top: 20px;
+            }
+            
+            .modal-actions button {
+                padding: 10px 25px;
+                border-radius: 30px;
+                border: none;
+                background-color: var(--color-positive);
+                color: var(--color-bg);
+                font-weight: bold;
+                cursor: pointer;
+                transition: all 0.2s ease;
+            }
+            
+            .modal-actions button:hover {
+                filter: brightness(110%);
+            }
+            
+            /* Active state for heart icon */
+            #heart-button.active i {
+                color: var(--color-negative);
+            }
+        </style>
+        
+        <!-- Add admin styles -->
+        <style>
+            .admin-section {
+                background-color: var(--color-bg);
+                border-bottom: 1px solid var(--color-line);
+                padding: 15px;
+                margin-bottom: 20px;
+            }
+            
+            .admin-content {
+                max-width: 600px;
+                margin: 0 auto;
+            }
+            
+            .admin-content h2 {
+                margin: 0 0 15px 0;
+                font-size: 1.2rem;
+                color: var(--color-fg);
+            }
+            
+            .admin-form {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+            }
+            
+            .form-group {
+                display: flex;
+                flex-direction: column;
+                gap: 5px;
+            }
+            
+            .form-group label {
+                color: var(--color-fg);
+                font-size: 0.9rem;
+            }
+            
+            .form-group input[type="text"] {
+                padding: 8px;
+                border: 1px solid var(--color-line);
+                border-radius: 4px;
+                background-color: var(--color-bg);
+                color: var(--color-fg);
+            }
+            
+            .checkbox-group {
+                flex-direction: row;
+                align-items: center;
+                gap: 8px;
+            }
+            
+            .checkbox-group input[type="checkbox"] {
+                margin: 0;
+            }
+            
+            .playlist-info {
+                margin-top: 15px;
+                padding: 10px;
+                background-color: var(--color-bg-alt);
+                border-radius: 4px;
+                display: none;
+            }
+            
+            .admin-message {
+                margin-top: 10px;
+                padding: 8px;
+                border-radius: 4px;
+                display: none;
+            }
+            
+            .admin-message.success {
+                background-color: rgba(29, 185, 84, 0.2);
+                border: 1px solid var(--color-positive);
+                color: var(--color-positive);
+            }
+            
+            .admin-message.error {
+                background-color: rgba(255, 0, 0, 0.2);
+                border: 1px solid var(--color-negative);
+                color: var(--color-negative);
+            }
+            
+            /* Active state for admin icon */
+            #admin-button.active i {
+                color: var(--color-positive);
+            }
+        </style>
+        
+        <!-- Add admin functionality to the script section -->
+        <script>
+            // Add to the existing DOMContentLoaded event listener
+            document.addEventListener('DOMContentLoaded', function() {
+                // ... existing code ...
+                
+                // Admin button functionality
+                const adminButton = document.getElementById('admin-button');
+                const adminSection = document.getElementById('admin-section');
+                
+                adminButton.addEventListener('click', function() {
+                    const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+                    if (userData.id && userData.id.toLowerCase() === 'aaron') {
+                        adminSection.style.display = adminSection.style.display === 'none' ? 'block' : 'none';
+                        this.classList.toggle('active');
+                    } else {
+                        alert('Admin access required');
+                    }
+                });
+                
+                // Save default playlist
+                document.getElementById('save-default-playlist').addEventListener('click', function() {
+                    const playlistId = document.getElementById('default-playlist-id').value.trim();
+                    const enforced = document.getElementById('enforce-playlist').checked;
+                    
+                    if (!playlistId) {
+                        showAdminMessage('Please enter a playlist ID', 'error');
+                        return;
+                    }
+                    
+                    // Save to localStorage
+                    const adminSettings = JSON.parse(localStorage.getItem('adminSettings') || '{}');
+                    adminSettings['aaron'] = {
+                        playlistId: playlistId,
+                        restricted: enforced,
+                        playlistName: document.querySelector('.playlist-info h4')?.textContent || ''
+                    };
+                    
+                    localStorage.setItem('adminSettings', JSON.stringify(adminSettings));
+                    showAdminMessage('Settings saved successfully!', 'success');
+                });
+                
+                // Lookup playlist
+                document.getElementById('lookup-playlist').addEventListener('click', function() {
+                    const playlistId = document.getElementById('default-playlist-id').value.trim();
+                    const accessToken = localStorage.getItem('access_token');
+                    
+                    if (!playlistId) {
+                        showAdminMessage('Please enter a playlist ID', 'error');
+                        return;
+                    }
+                    
+                    if (!accessToken) {
+                        showAdminMessage('Authentication required', 'error');
+                        return;
+                    }
+                    
+                    fetch(`https://api.spotify.com/v1/playlists/${playlistId}`, {
+                        headers: {
+                            'Authorization': `Bearer ${accessToken}`
+                        }
+                    })
+                    .then(response => {
+                        if (!response.ok) throw new Error('Playlist not found');
+                        return response.json();
+                    })
+                    .then(data => {
+                        const playlistInfo = document.getElementById('playlist-info');
+                        playlistInfo.innerHTML = `
+                            <h4>${data.name}</h4>
+                            <p>By: ${data.owner.display_name}</p>
+                            <p>${data.tracks.total} tracks</p>
+                        `;
+                        playlistInfo.style.display = 'block';
+                        showAdminMessage('Playlist found!', 'success');
+                    })
+                    .catch(error => {
+                        showAdminMessage(error.message, 'error');
+                    });
+                });
+                
+                // Load existing settings
+                const adminSettings = JSON.parse(localStorage.getItem('adminSettings') || '{}');
+                const aaronSettings = adminSettings['aaron'] || {};
+                if (aaronSettings.playlistId) {
+                    document.getElementById('default-playlist-id').value = aaronSettings.playlistId;
+                    document.getElementById('enforce-playlist').checked = aaronSettings.restricted;
+                }
+            });
+            
+            function showAdminMessage(text, type) {
+                const messageEl = document.getElementById('admin-message');
+                messageEl.textContent = text;
+                messageEl.className = `admin-message ${type}`;
+                messageEl.style.display = 'block';
+                
+                setTimeout(() => {
+                    messageEl.style.display = 'none';
+                }, 5000);
+            }
+        </script>
+    </body></html>

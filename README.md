@@ -1,41 +1,122 @@
-# K-Pop Girl Group Heardle
+<a name="readme-top"></a>
 
-Remixed and extended from the original K-Pop GG Heardle (which ran out of songs).
+[![LinkedIn][linkedin-shield]][linkedin-url]
 
-This is a spin-off of the original [Heardle](https://www.heardle.app/) but for K-Pop Girl Group songs. Each song is randomly chosen from soundclud. I do not own any rights to the songs used in this game. All copyright goes to the relevant parties.
+[!["Buy Me A Coffee"](https://www.buymeacoffee.com/assets/img/custom_images/orange_img.png)](https://www.buymeacoffee.com/aliceakesson)
 
-The code for this project is remixed from the [ZAYN Heardle](https://zayn-heardle.glitch.me/) (by [@eggtartemily](https://twitter.com/eggtartemily)) and [Taylor Swift Heardle](https://taylor-swift-heardle.glitch.me/) projects.
+<br />
+<div align="center">
+  <a href="https://github.com/aliceakesson/Heardle-Spotify/">
+    <img src="public/icon.png" alt="Logo" width="80" height="80">
+  </a>
 
-If you have any questions, you can contact me at [alw.lol](https://alw.lol). This project was updated at the request of Dilara.
+  <h3 align="center">Heardle Spotify</h3>
 
-### How to create your own custom Heardle
+  <p align="center">
+    Heardle built on a Node.js server using Spotify's Web API
+  </p>
+</div>
 
-1. Create a Glitch account.
-2. Remix this project (or another existing custom Heardle project on Glitch) and rename the project to what you want the game link to be (e.g. artist-heardle).
-3. In the `index.html` file, change every instance of 'K-Pop Girl Group' to your artist. You can find and replace by hitting command+option+F on Mac (I don't know what the shortcut is on Windows).
-4. In the `index.html` file, there is a long link to a photo. Replace every instance of this link with a URL to a photo of your choice.
-5. Songs and answers are defined in the `songs.js` file. The songs should go in the order you want the game to go. You can manually enter the songs or if you know how to, you can write a separate script to randomize the tracks and then just copy and paste. **Note: These tracks have to follow the format `Artist - Track Title` for it to display correctly in the SoundCloud widget.**
-6. In the `main.js` file, search for every instance of 'K-Pop Girl Group'. These will include the text for the info tab, support tab, game link, game messages, etc. Replace these with your artist and customize the text to your liking. **Important:** Change the game link in the clipboard copy to your custom Heardle link. If you forget, users who copy their results will copy the link to this Heardle instead. Search "kpopgg-heardle-round2.glitch.me" if you can't find the line of code.
-7. In the `main.js` file, find where `const Vt` is defined. Below that, there will be a list of game messages that will show depending on how many tries the user guesses the song in. Customize these to your liking.
-8. Also in this section is the variable `startDate`. Theoretically, you would change this to the current date so that the game starts with the first track you listed. However, I noticed that if you do this, it will mess up the SoundCloud player, so I ended up entering a date like a week earlier which was the latest date I could use without messing up the player. It's weird. It seems like a bug in the original Heardle code as well, but I don't know JavaScript well enough to know how to fix this bug. If you do, DM me.
+<!-- ABOUT THE PROJECT -->
+## About The Project
 
-Now you're done with all the necessary changes. Congrats! Read on for optional edits.
+<p>
+This is another version of Heardle made completely by me, where the user can choose freely regarding choice of music. For example: song by artist, song by playlist or a song from the user's top songs.
+</p>
 
-1. In the `bundle.css` file, go to line 788. Here you can change the different accent colors for your game. Simply replace the HEX color codes with ones you want.
-2. You are currently reading the `README.md` file. Once you no longer need this, you can delete all this text and write whatever information you want to include about this project.
-3. Lastly, share your custom Heardle!
+<br><br>
 
-### Testing Locally
+<div style="display: flex;justify-content: center;align-items: center;margin:auto">
+  <img src="https://user-images.githubusercontent.com/91065258/231267216-1965ff1b-522f-48c2-8547-0763d472e100.png" style="width:45%">
+  <img src="https://user-images.githubusercontent.com/91065258/231267239-c5100193-34b0-455d-9496-87c140602f44.png" style="width:45%">
+</div>
 
-To test your Heardle locally before deploying:
+<br><br>
 
-1. Clone or download the project to your local machine
-2. Navigate to the project directory in your terminal
-3. Run a local server using one of these methods:
-   - Python 3: `python -m http.server 8000`
-   - Python 2: `python -m SimpleHTTPServer 8000`
-   - Node.js: Install `http-server` with `npm install -g http-server` then run `http-server`
-   - VS Code: Use the Live Server extension
-4. Open your browser and go to `http://localhost:8000` (or the port specified by your server)
+## Requirements
 
-Note: Some features that depend on specific Glitch functionality might not work locally.
+Sadly, this project requires the user to have some sort of Spotify Premium membership. This is because, as for now, you will need to start your own Spotify Application to play it (more about this in the installation guide further down).
+
+## Built With
+
+<p>
+The site runs on a local host, made using Node.js. Further, it's built using Spotify's Web API and the Spotify Web Playback SDK, where the user will have to authenticate using <a href="https://datatracker.ietf.org/doc/html/rfc6749">OAuth 2.0</a>. 
+</p>
+
+* [![Node][node-shield]][node-url]
+* [![JavaScript][js-shield]][js-url]
+* [![HTML][html-shield]][html-url]
+* [![CSS][css-shield]][css-url]
+
+
+## Installation
+
+If you don't already have NodeJS installed, you will need to do that first. NodeJS can be installed [here](https://nodejs.org/en).
+
+As mentioned in the requirements, you will first need to create your own Spotify Application. This is easily done through <a href="https://developer.spotify.com/dashboard">the Spotify Dashboard</a>. The steps are as following: 
+
+1. Click on "Create app"
+2. Give the app a name (any) and a short description
+3. Leave the textfield for "Website" blank. This is not needed
+4. Enter 'http://localhost:8888/callback' for the redirect URL
+5. Check the terms of service box 
+6. Click on "Save"
+
+Now, proceed to download and extract the zip-file of this GitHub project. Open the project in any code editor and locate the environment-file (.env) which is located in the 'public' folder. The values for CLIENT_ID and CLIENT_SECRET can be found by clicking on the settings of your Spotify Application (The client secret will be visible by clicking on "View client secret"). Enter these values for their respective variables in the environment. 
+
+> **Note:** The values should not be written inside string literals, they should just be inserted as they are (eg. CLIENT_ID=1234567890, not CLIENT_ID="1234567890")
+
+The application requires you to run it on a local server (this is done using Node.js and nodemon), thus you will therefore afterwards have to download these. In the your terminal, go to the directory of the project and then go to the folder named 'public' using this command: 
+
+```sh
+  cd public
+  ```  
+> **Note:** This command is based off of the Windows terminal. It may vary depending on the operative system.
+
+After that, install npm and nodemon in the current folder using the following two commands: 
+
+```sh
+  npm install 
+  ```
+
+```sh
+  npm install -g nodemon
+  ```
+  
+ If everything goes well, the application should then be playable by calling the command to start the server, then open up the server in your browser of choice at <a>http://localhost:8888/login</a>.
+ 
+ ```sh
+  nodemon server.js
+  ```
+
+It can be exited at anytime by using Ctrl+C in the terminal, or be refreshed by simply writing the following: 
+
+```sh
+  rs
+  ```
+## Having Problems?
+First, check the following: 
+- Your Spotify-application is open
+- You've opened it thorugh the correct URL, i.e. localhost:8888/login
+- Your server is running through your commando prompt
+
+After that, you might try the following:
+- Check that you've achieved an accesstoken in **public/views/index.html**, at first it was empty
+- Start some song thorugh Spotify, restart the server through **rs** and reload the page
+- Check that your application through **Spotify Dashboard** is correctly made and that you've inserted the correct **CLIENT_ID** and **CLIENT_SECRET** in your **public/.env**
+
+<!-- CONTACT -->
+## Contact
+
+Alice Åkesson - alicek732@gmail.com
+
+[css-shield]: https://img.shields.io/badge/CSS-239120?&style=for-the-badge&logo=css3&logoColor=white
+[css-url]: https://www.w3.org/Style/CSS/Overview.en.html
+[html-shield]: https://img.shields.io/badge/HTML-239120?style=for-the-badge&logo=html5&logoColor=white
+[html-url]: https://html.com/
+[js-shield]: https://img.shields.io/badge/JavaScript-F7DF1E?style=for-the-badge&logo=javascript&logoColor=black
+[js-url]: https://www.javascript.com/
+[linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
+[linkedin-url]: https://www.linkedin.com/in/alice-%C3%A5kesson-20a066215/
+[node-shield]: https://img.shields.io/badge/Node.js-43853D?style=for-the-badge&logo=node.js&logoColor=white
+[node-url]: https://nodejs.org/en

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Aaron's Music Heardle</title>
+    <link rel="icon" href="../icon.png">
+    <link rel="stylesheet" type="text/css" href="/css/heardle-theme.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+    <main>
+        <div id="content" class="section">
+            <h1>Aaron's Music Heardle</h1>
+            <p class="subtitle">Choose Your Game Mode</p>
+            
+            <div id="select-div">
+                <select id="select" name="select">
+                    <option hidden disabled selected>Choose an alternative...</option>
+                    <option value="1">Artist (by name)</option>
+                    <option value="2">Artist (by ID)</option>
+                    <option value="3">By Playlist</option>
+                    <option value="4">By Album</option>
+                    <option value="5">Specific song</option>
+                    <option value="6">My top 50 songs</option>
+                    <option value="7">My liked songs</option>
+                </select>
+                <textarea rows="1" disabled></textarea>
+            </div>
+            <button id="button">Done</button>
+            
+            <div id="status-message" class="status-message"></div>
+            
+            <div id="user-info" class="user-info">
+                <p>Not logged in yet</p>
+            </div>
+            
+            <div id="stats-link" class="stats-link">
+                <a href="#" onclick="openStatsModal(); return false;">View Stats</a>
+            </div>
+        </div>
+
+        <!-- Stats Modal -->
+        <div id="stats-modal" class="modal">
+            <div class="modal-background"></div>
+            <div class="modal-content">
+                <div class="stats-container">
+                    <h2>Your Stats</h2>
+                    <div class="stats-summary">
+                        <div class="stats-item">
+                            <div class="stats-number">0</div>
+                            <div class="stats-label">Played</div>
+                        </div>
+                        <div class="stats-item">
+                            <div class="stats-number">0%</div>
+                            <div class="stats-label">Win %</div>
+                        </div>
+                        <div class="stats-item">
+                            <div class="stats-number">0</div>
+                            <div class="stats-label">Current Streak</div>
+                        </div>
+                        <div class="stats-item">
+                            <div class="stats-number">0</div>
+                            <div class="stats-label">Max Streak</div>
+                        </div>
+                    </div>
+                    
+                    <h3>Guess Distribution</h3>
+                    <div class="guess-distribution">
+                        <!-- Will be populated by JavaScript -->
+                    </div>
+                    
+                    <div class="modal-actions">
+                        <button id="close-stats">Close</button>
+                        <button id="share-stats" class="action-button">Share</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+    
+    <script type="module" src="/js/startup.js"></script>
+    <script type="module" src="/js/auth-redirect.js"></script>
+    <script>
+        // Function to open stats modal
+        function openStatsModal() {
+            const statsModal = document.getElementById('stats-modal');
+            const stats = JSON.parse(localStorage.getItem('heardleStats') || '{"gamesPlayed":0,"gamesWon":0,"currentStreak":0,"maxStreak":0,"guessDistribution":[0,0,0,0,0,0]}');
+            
+            // Update summary stats
+            document.querySelector('.stats-item:nth-child(1) .stats-number').textContent = stats.gamesPlayed;
+            const winPercentage = stats.gamesPlayed > 0 ? Math.round((stats.gamesWon / stats.gamesPlayed) * 100) : 0;
+            document.querySelector('.stats-item:nth-child(2) .stats-number').textContent = winPercentage + '%';
+            document.querySelector('.stats-item:nth-child(3) .stats-number').textContent = stats.currentStreak;
+            document.querySelector('.stats-item:nth-child(4) .stats-number').textContent = stats.maxStreak;
+            
+            // Update guess distribution
+            const distribution = document.querySelector('.guess-distribution');
+            distribution.innerHTML = '';
+            stats.guessDistribution.forEach((count, index) => {
+                const bar = document.createElement('div');
+                bar.className = 'guess-bar';
+                const percentage = stats.gamesPlayed > 0 ? Math.round((count / stats.gamesPlayed) * 100) : 0;
+                bar.style.width = `${percentage}%`;
+                bar.innerHTML = `
+                    <div class="guess-number">${index + 1}</div>
+                    <div class="guess-count">${count}</div>
+                `;
+                distribution.appendChild(bar);
+            });
+            
+            statsModal.style.display = 'block';
+        }
+        
+        // Close modal when clicking outside
+        document.querySelector('.modal-background').addEventListener('click', function() {
+            document.getElementById('stats-modal').style.display = 'none';
+        });
+        
+        // Close modal when clicking close button
+        document.getElementById('close-stats').addEventListener('click', function() {
+            document.getElementById('stats-modal').style.display = 'none';
+        });
+        
+        // Share stats
+        document.getElementById('share-stats').addEventListener('click', function() {
+            const stats = JSON.parse(localStorage.getItem('heardleStats') || '{"gamesPlayed":0,"gamesWon":0,"currentStreak":0,"maxStreak":0,"guessDistribution":[0,0,0,0,0,0]}');
+            const winPercentage = stats.gamesPlayed > 0 ? Math.round((stats.gamesWon / stats.gamesPlayed) * 100) : 0;
+            
+            const shareText = `🎵 Aaron's Music Heardle Stats 🎵\n\n` +
+                `Games Played: ${stats.gamesPlayed}\n` +
+                `Win Rate: ${winPercentage}%\n` +
+                `Current Streak: ${stats.currentStreak}\n` +
+                `Best Streak: ${stats.maxStreak}\n\n` +
+                `Guess Distribution:\n` +
+                stats.guessDistribution.map((count, index) => 
+                    `${index + 1}: ${count} (${stats.gamesPlayed > 0 ? Math.round((count / stats.gamesPlayed) * 100) : 0}%)`
+                ).join('\n');
+            
+            if (navigator.clipboard && window.isSecureContext) {
+                navigator.clipboard.writeText(shareText)
+                    .then(() => alert('Stats copied to clipboard!'))
+                    .catch(() => {
+                        const textarea = document.createElement('textarea');
+                        textarea.value = shareText;
+                        document.body.appendChild(textarea);
+                        textarea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textarea);
+                        alert('Stats copied to clipboard!');
+                    });
+            } else {
+                alert(shareText);
+            }
+        });
+    </script>
+</body>
+</html>

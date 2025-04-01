@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hördel - Troubleshooting</title>
+    <link rel="icon" href="../icon.png">
+    <link rel="stylesheet" type="text/css" href="/css/heardle-theme.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://sdk.scdn.co/spotify-player.js"></script>
+    <style>
+        .diagnostics {
+            max-width: 700px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #ddd;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #222;
+            border-radius: 5px;
+        }
+        .section h2 {
+            margin-top: 0;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+        }
+        .log-container {
+            background-color: #111;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            margin-top: 15px;
+            max-height: 200px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+        .success {
+            color: #1DB954;
+        }
+        .error {
+            color: #ff0000;
+        }
+        .warning {
+            color: #f9a825;
+        }
+        .info {
+            color: #40c8e0;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #1DB954;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+            margin-right: 5px;
+        }
+        button:hover {
+            background-color: #1ED760;
+        }
+        .device-card {
+            background-color: #333;
+            padding: 10px;
+            margin: 5px 0;
+            border-radius: 5px;
+            display: flex;
+            justify-content: space-between;
+        }
+        .active-device {
+            border: 2px solid #1DB954;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <div class="diagnostics">
+            <h1>Hördel - Troubleshooting</h1>
+            
+            <div class="section">
+                <h2>Spotify Connection Status</h2>
+                <div id="status-message">Checking Spotify connection...</div>
+                <div class="log-container" id="connection-log"></div>
+                <button id="check-connection">Check Connection</button>
+                <button id="refresh-token">Refresh Token</button>
+                <button id="open-spotify">Open Spotify App</button>
+            </div>
+            
+            <div class="section">
+                <h2>Spotify Devices</h2>
+                <div id="devices-container">Loading devices...</div>
+                <div class="log-container" id="devices-log"></div>
+                <button id="refresh-devices">Refresh Devices</button>
+                <button id="create-device">Create Web Player</button>
+            </div>
+            
+            <div class="section">
+                <h2>Playback Test</h2>
+                <div id="playback-status">Ready to test playback</div>
+                <div class="log-container" id="playback-log"></div>
+                <button id="test-play">Test Play</button>
+                <button id="test-pause">Test Pause</button>
+            </div>
+            
+            <div class="section">
+                <h2>Browser Compatibility</h2>
+                <div id="browser-info"></div>
+                <div class="log-container" id="browser-log"></div>
+                <button id="check-browser">Check Browser Compatibility</button>
+            </div>
+            
+            <div class="section">
+                <a href="/" style="color: #1DB954; text-decoration: none;">← Back to Home</a>
+            </div>
+        </div>
+    </main>
+    
+    <script>
+        // Get access token from localStorage or URL
+        function getAccessToken() {
+            // Try to get from URL fragment
+            const urlParams = new URLSearchParams(window.location.hash.substr(1));
+            let accessToken = urlParams.get('access_token');
+            
+            // If not in URL, try localStorage
+            if (!accessToken) {
+                accessToken = localStorage.getItem('access_token');
+            }
+            
+            return accessToken;
+        }
+        
+        const accessToken = getAccessToken();
+        let webPlaybackPlayer = null;
+        let playerDeviceId = null;
+        
+        // Logging utilities
+        function log(containerId, message, type = 'info') {
+            const container = document.getElementById(containerId);
+            const logEntry = document.createElement('div');
+            logEntry.className = type;
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            container.appendChild(logEntry);
+            container.scrollTop = container.scrollHeight;
+        }
+        
+        // Check Spotify connection
+        function checkConnection() {
+            if (!accessToken) {
+                document.getElementById('status-message').textContent = 'No access token found';
+                log('connection-log', 'No access token found. Please log in again.', 'error');
+                return;
+            }
+            
+            document.getElementById('status-message').textContent = 'Checking connection...';
+            log('connection-log', 'Checking Spotify API connection...', 'info');
+            
+            fetch('https://api.spotify.com/v1/me', {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    if (response.status === 401) {
+                        document.getElementById('status-message').textContent = 'Token expired. Please refresh.';
+                        log('connection-log', 'Token expired. Please refresh your token.', 'error');
+                        return null;
+                    }
+                    throw new Error(`Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data) {
+                    document.getElementById('status-message').textContent = `Connected as ${data.display_name}`;
+                    log('connection-log', `Connected to Spotify as ${data.display_name}`, 'success');
+                    log('connection-log', `Account type: ${data.product}`, 'info');
+                    
+                    if (data.product !== 'premium') {
+                        log('connection-log', 'Spotify Premium is required for the Web Playback SDK', 'warning');
+                    }
+                }
+            })
+            .catch(error => {
+                document.getElementById('status-message').textContent = 'Connection failed';
+                log('connection-log', `Connection failed: ${error.message}`, 'error');
+            });
+        }
+        
+        // Refresh access token
+        function refreshToken() {
+            const refreshToken = localStorage.getItem('refresh_token');
+            
+            if (!refreshToken) {
+                log('connection-log', 'No refresh token found. Please log in again.', 'error');
+                return;
+            }
+            
+            log('connection-log', 'Refreshing access token...', 'info');
+            
+            fetch(`/refresh_token?refresh_token=${refreshToken}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.access_token) {
+                        localStorage.setItem('access_token', data.access_token);
+                        log('connection-log', 'Access token refreshed successfully', 'success');
+                        window.location.reload();
+                    } else {
+                        log('connection-log', 'Failed to refresh token', 'error');
+                    }
+                })
+                .catch(error => {
+                    log('connection-log', `Error refreshing token: ${error.message}`, 'error');
+                });
+        }
+        
+        // Get available devices
+        function getDevices() {
+            if (!accessToken) {
+                log('devices-log', 'No access token found. Please log in again.', 'error');
+                return;
+            }
+            
+            log('devices-log', 'Fetching available Spotify devices...', 'info');
+            
+            fetch('https://api.spotify.com/v1/me/player/devices', {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                const devicesContainer = document.getElementById('devices-container');
+                devicesContainer.innerHTML = '';
+                
+                if (data.devices && data.devices.length > 0) {
+                    log('devices-log', `Found ${data.devices.length} device(s)`, 'success');
+                    
+                    data.devices.forEach(device => {
+                        const deviceEl = document.createElement('div');
+                        deviceEl.className = `device-card ${device.is_active ? 'active-device' : ''}`;
+                        
+                        deviceEl.innerHTML = `
+                            <div>
+                                <strong>${device.name}</strong>
+                                <div>Type: ${device.type}</div>
+                                <div>Volume: ${device.volume_percent || 'N/A'}</div>
+                            </div>
+                            <div>
+                                ${device.is_active ? '<span class="success">Active</span>' : ''}
+                                <button class="use-device" data-id="${device.id}">Use This Device</button>
+                            </div>
+                        `;
+                        
+                        devicesContainer.appendChild(deviceEl);
+                    });
+                    
+                    // Add event listeners to device buttons
+                    document.querySelectorAll('.use-device').forEach(button => {
+                        button.addEventListener('click', function() {
+                            transferPlayback(this.getAttribute('data-id'));
+                        });
+                    });
+                } else {
+                    devicesContainer.textContent = 'No devices found. Open Spotify on another device first.';
+                    log('devices-log', 'No devices found', 'warning');
+                }
+            })
+            .catch(error => {
+                log('devices-log', `Error fetching devices: ${error.message}`, 'error');
+            });
+        }
+        
+        // Transfer playback to a device
+        function transferPlayback(deviceId) {
+            log('devices-log', `Transferring playback to device ${deviceId}...`, 'info');
+            
+            fetch('https://api.spotify.com/v1/me/player', {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    device_ids: [deviceId],
+                    play: false
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    if (response.status === 403) {
+                        throw new Error('Premium required for device transfer');
+                    }
+                    throw new Error(`Status: ${response.status}`);
+                }
+                log('devices-log', 'Playback transferred successfully', 'success');
+                setTimeout(getDevices, 1000); // Refresh devices after transfer
+            })
+            .catch(error => {
+                log('devices-log', `Error transferring playback: ${error.message}`, 'error');
+            });
+        }
+        
+        // Initialize Web Playback SDK
+        function initializeWebPlayback() {
+            if (!accessToken) {
+                log('devices-log', 'No access token found. Please log in again.', 'error');
+                return;
+            }
+            
+            log('devices-log', 'Initializing Web Playback...', 'info');
+            
+            if (!Spotify) {
+                log('devices-log', 'Spotify Web Playback SDK not loaded', 'error');
+                return;
+            }
+            
+            webPlaybackPlayer = new Spotify.Player({
+                name: 'Hördel Web Player',
+                getOAuthToken: cb => { cb(accessToken); },
+                volume: 0.5
+            });
+            
+            // Ready
+            webPlaybackPlayer.addListener('ready', ({ device_id }) => {
+                log('devices-log', `Web Player ready with device ID: ${device_id}`, 'success');
+                playerDeviceId = device_id;
+                setTimeout(getDevices, 1000); // Refresh devices after ready
+            });
+            
+            // Not Ready
+            webPlaybackPlayer.addListener('not_ready', ({ device_id }) => {
+                log('devices-log', `Device has gone offline: ${device_id}`, 'warning');
+            });
+            
+            // Error listeners
+            webPlaybackPlayer.addListener('initialization_error', ({ message }) => {
+                log('devices-log', `Initialization error: ${message}`, 'error');
+            });
+            
+            webPlaybackPlayer.addListener('authentication_error', ({ message }) => {
+                log('devices-log', `Authentication error: ${message}`, 'error');
+            });
+            
+            webPlaybackPlayer.addListener('account_error', ({ message }) => {
+                log('devices-log', `Account error: ${message}`, 'error');
+            });
+            
+            webPlaybackPlayer.connect()
+                .then(success => {
+                    if (success) {
+                        log('devices-log', 'Web Player connected successfully', 'success');
+                    } else {
+                        log('devices-log', 'Failed to connect Web Player', 'error');
+                    }
+                })
+                .catch(error => {
+                    log('devices-log', `Error connecting Web Player: ${error.message}`, 'error');
+                });
+        }
+        
+        // Test playback
+        function testPlayback() {
+            if (!accessToken) {
+                log('playback-log', 'No access token found. Please log in again.', 'error');
+                return;
+            }
+            
+            if (!playerDeviceId) {
+                log('playback-log', 'No Web Player device available. Create one first.', 'warning');
+            }
+            
+            log('playback-log', 'Testing playback...', 'info');
+            document.getElementById('playback-status').textContent = 'Attempting to play test track...';
+            
+            // Use a test track (Rick Astley - Never Gonna Give You Up)
+            const trackUri = 'spotify:track:4cOdK2wGLETKBW3PvgPWqT';
+            
+            // Use device ID if available, otherwise let Spotify use active device
+            const deviceParam = playerDeviceId ? `?device_id=${playerDeviceId}` : '';
+            
+            fetch(`https://api.spotify.com/v1/me/player/play${deviceParam}`, {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    uris: [trackUri],
+                    position_ms: 0
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    if (response.status === 403) {
+                        throw new Error('Spotify Premium required');
+                    } else if (response.status === 404) {
+                        throw new Error('No active device found');
+                    }
+                    throw new Error(`Status: ${response.status}`);
+                }
+                document.getElementById('playback-status').textContent = 'Track playing successfully';
+                log('playback-log', 'Test track playing successfully', 'success');
+            })
+            .catch(error => {
+                document.getElementById('playback-status').textContent = 'Playback failed';
+                log('playback-log', `Playback failed: ${error.message}`, 'error');
+                
+                if (error.message.includes('No active device')) {
+                    log('playback-log', 'Tip: Open Spotify app or create a Web Player first', 'info');
+                } else if (error.message.includes('Premium')) {
+                    log('playback-log', 'Spotify Premium is required to control playback', 'warning');
+                }
+            });
+        }
+        
+        // Pause playback
+        function pausePlayback() {
+            if (!accessToken) {
+                log('playback-log', 'No access token found. Please log in again.', 'error');
+                return;
+            }
+            
+            log('playback-log', 'Pausing playback...', 'info');
+            
+            fetch('https://api.spotify.com/v1/me/player/pause', {
+                method: 'PUT',
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`Status: ${response.status}`);
+                }
+                document.getElementById('playback-status').textContent = 'Playback paused';
+                log('playback-log', 'Playback paused successfully', 'success');
+            })
+            .catch(error => {
+                log('playback-log', `Error pausing: ${error.message}`, 'error');
+            });
+        }
+        
+        // Check browser compatibility
+        function checkBrowserCompatibility() {
+            const browserInfo = document.getElementById('browser-info');
+            const log = (message, type) => {
+                const container = document.getElementById('browser-log');
+                const logEntry = document.createElement('div');
+                logEntry.className = type;
+                logEntry.textContent = message;
+                container.appendChild(logEntry);
+            };
+            
+            // Get browser info
+            const userAgent = navigator.userAgent;
+            browserInfo.innerHTML = `<p>User Agent: ${userAgent}</p>`;
+            
+            // Check Web Playback SDK support
+            if (typeof Spotify === 'undefined') {
+                log('Spotify Web Playback SDK not loaded', 'error');
+            } else {
+                log('Spotify Web Playback SDK loaded', 'success');
+            }
+            
+            // Check local storage
+            try {
+                localStorage.setItem('test', 'test');
+                localStorage.removeItem('test');
+                log('LocalStorage available', 'success');
+            } catch (e) {
+                log('LocalStorage not available', 'error');
+            }
+            
+            // Check if cookies are enabled
+            if (navigator.cookieEnabled) {
+                log('Cookies enabled', 'success');
+            } else {
+                log('Cookies disabled', 'error');
+            }
+            
+            // Check Web Audio API
+            if (typeof AudioContext !== 'undefined' || typeof webkitAudioContext !== 'undefined') {
+                log('Web Audio API supported', 'success');
+            } else {
+                log('Web Audio API not supported', 'error');
+            }
+            
+            // Check if running in a secure context (needed for some features)
+            if (window.isSecureContext) {
+                log('Running in secure context', 'success');
+            } else {
+                log('Not running in secure context', 'warning');
+            }
+            
+            // Check if browser is compatible with Spotify Web Player
+            const isChrome = userAgent.indexOf('Chrome') > -1;
+            const isFirefox = userAgent.indexOf('Firefox') > -1;
+            const isSafari = userAgent.indexOf('Safari') > -1 && userAgent.indexOf('Chrome') === -1;
+            const isEdge = userAgent.indexOf('Edg') > -1;
+            
+            if (isChrome || isFirefox || isEdge) {
+                log('Browser is supported for Spotify Web Player', 'success');
+            } else if (isSafari) {
+                log('Safari has limited support for Spotify Web Player', 'warning');
+            } else {
+                log('Browser may not be fully compatible with Spotify Web Player', 'warning');
+            }
+        }
+        
+        // Open Spotify App
+        function openSpotifyApp() {
+            window.open('spotify:');
+            log('connection-log', 'Attempted to open Spotify app', 'info');
+        }
+        
+        // Initialize page
+        document.addEventListener('DOMContentLoaded', () => {
+            // Attach event listeners
+            document.getElementById('check-connection').addEventListener('click', checkConnection);
+            document.getElementById('refresh-token').addEventListener('click', refreshToken);
+            document.getElementById('refresh-devices').addEventListener('click', getDevices);
+            document.getElementById('create-device').addEventListener('click', initializeWebPlayback);
+            document.getElementById('test-play').addEventListener('click', testPlayback);
+            document.getElementById('test-pause').addEventListener('click', pausePlayback);
+            document.getElementById('check-browser').addEventListener('click', checkBrowserCompatibility);
+            document.getElementById('open-spotify').addEventListener('click', openSpotifyApp);
+            
+            // Initial checks
+            checkConnection();
+            getDevices();
+            checkBrowserCompatibility();
+        });
+    </script>
+</body>
+</html> 

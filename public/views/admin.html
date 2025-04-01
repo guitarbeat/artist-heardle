@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hördel Admin Panel</title>
+    <link rel="icon" href="../icon.png">
+    <link rel="stylesheet" type="text/css" href="/css/heardle-theme.css">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        .admin-panel {
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+            color: #ddd;
+        }
+        .admin-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: #222;
+            border-radius: 5px;
+        }
+        .admin-section h2 {
+            margin-top: 0;
+            border-bottom: 1px solid #444;
+            padding-bottom: 10px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        input, select {
+            width: 100%;
+            padding: 8px;
+            background-color: #333;
+            border: 1px solid #444;
+            color: #ddd;
+            border-radius: 3px;
+        }
+        button {
+            padding: 10px 20px;
+            background-color: #1DB954;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-top: 10px;
+        }
+        button:hover {
+            background-color: #1ED760;
+        }
+        .message {
+            padding: 10px;
+            margin-top: 10px;
+            border-radius: 3px;
+        }
+        .success {
+            background-color: rgba(29, 185, 84, 0.3);
+            border: 1px solid #1DB954;
+        }
+        .error {
+            background-color: rgba(255, 0, 0, 0.3);
+            border: 1px solid #ff0000;
+        }
+        .playlist-info {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: #333;
+            border-radius: 5px;
+        }
+        .playlist-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .playlist-image {
+            width: 60px;
+            height: 60px;
+            margin-right: 15px;
+            border-radius: 3px;
+        }
+        .playlist-details h4 {
+            margin: 0 0 5px 0;
+        }
+        .playlist-details p {
+            margin: 0;
+            color: #999;
+        }
+    </style>
+</head>
+<body>
+    <main>
+        <div class="admin-panel">
+            <h1>Hördel Admin Panel</h1>
+            
+            <div class="admin-section">
+                <h2>Admin Authentication</h2>
+                <div id="login-status">
+                    <p>Please log in with your Spotify account first.</p>
+                    <button id="login-button">Log in with Spotify</button>
+                </div>
+                <div id="user-info" style="display: none;">
+                    <p>Logged in as: <span id="username"></span></p>
+                    <p>User ID: <span id="user-id"></span></p>
+                </div>
+            </div>
+            
+            <div id="admin-controls" class="admin-section" style="display: none;">
+                <h2>Admin Controls</h2>
+                <div class="form-group">
+                    <label for="playlist-id">Set Default Playlist ID:</label>
+                    <input type="text" id="playlist-id" placeholder="Enter Spotify playlist ID">
+                </div>
+                <div class="form-group">
+                    <label for="restrict-mode">Restrict Mode:</label>
+                    <select id="restrict-mode">
+                        <option value="true">Enabled (Force use of preset playlist)</option>
+                        <option value="false">Disabled (Allow any playlist)</option>
+                    </select>
+                </div>
+                <button id="save-settings">Save Settings</button>
+                <button id="lookup-playlist">Lookup Playlist Info</button>
+                <div id="message" class="message" style="display: none;"></div>
+                
+                <div id="playlist-info" class="playlist-info" style="display: none;">
+                    <h3>Current Playlist Information</h3>
+                    <div id="playlist-details"></div>
+                </div>
+            </div>
+            
+            <div class="admin-section">
+                <a href="/" style="color: #1DB954; text-decoration: none;">← Back to Home</a>
+            </div>
+        </div>
+    </main>
+    
+    <script>
+        // Check if user is already logged in
+        document.addEventListener('DOMContentLoaded', function() {
+            const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+            const accessToken = localStorage.getItem('accessToken');
+            
+            if (userData.id && accessToken) {
+                showUserInfo(userData);
+                checkAdminStatus(userData.id);
+            }
+            
+            // Login button
+            document.getElementById('login-button').addEventListener('click', function() {
+                window.location.href = '/login';
+            });
+            
+            // Save settings button
+            document.getElementById('save-settings').addEventListener('click', saveSettings);
+            
+            // Lookup playlist button
+            document.getElementById('lookup-playlist').addEventListener('click', lookupPlaylist);
+        });
+        
+        function showUserInfo(userData) {
+            document.getElementById('username').textContent = userData.display_name || userData.id;
+            document.getElementById('user-id').textContent = userData.id;
+            document.getElementById('login-status').style.display = 'none';
+            document.getElementById('user-info').style.display = 'block';
+        }
+        
+        function checkAdminStatus(userId) {
+            // For simplicity, we'll check if the user is in our predefined admin list
+            // In a real implementation, this could check against a database
+            const adminSettings = JSON.parse(localStorage.getItem('adminSettings') || '{}');
+            
+            if (adminSettings[userId.toLowerCase()] || userId.toLowerCase() === 'aaron') {
+                document.getElementById('admin-controls').style.display = 'block';
+                
+                // Load existing settings
+                const settings = adminSettings[userId.toLowerCase()] || {};
+                document.getElementById('playlist-id').value = settings.playlistId || '';
+                document.getElementById('restrict-mode').value = (settings.restricted !== undefined) ? settings.restricted.toString() : 'true';
+                
+                // If there's a playlist ID, look it up
+                if (settings.playlistId) {
+                    lookupPlaylist();
+                }
+            } else {
+                showMessage('You do not have admin privileges.', 'error');
+            }
+        }
+        
+        function saveSettings() {
+            const userData = JSON.parse(localStorage.getItem('userData') || '{}');
+            const userId = userData.id;
+            
+            if (!userId) {
+                showMessage('You must be logged in to save settings.', 'error');
+                return;
+            }
+            
+            const playlistId = document.getElementById('playlist-id').value.trim();
+            const restricted = document.getElementById('restrict-mode').value === 'true';
+            
+            // If we have a playlist ID, try to get its name
+            let playlistName = '';
+            if (playlistId) {
+                try {
+                    // Try to get the playlist info from the displayed details if available
+                    const playlistDetails = document.getElementById('playlist-details');
+                    const nameEl = playlistDetails.querySelector('h4');
+                    if (nameEl) {
+                        playlistName = nameEl.textContent;
+                    }
+                } catch (e) {
+                    console.error('Error getting playlist name:', e);
+                }
+            }
+            
+            // Save to adminSettings in localStorage
+            const adminSettings = JSON.parse(localStorage.getItem('adminSettings') || '{}');
+            adminSettings[userId.toLowerCase()] = {
+                playlistId: playlistId,
+                restricted: restricted,
+                playlistName: playlistName
+            };
+            
+            localStorage.setItem('adminSettings', JSON.stringify(adminSettings));
+            showMessage(`Admin settings saved successfully! ${restricted ? 'All users will be restricted to this playlist.' : 'Playlist restrictions disabled.'}`, 'success');
+        }
+        
+        function lookupPlaylist() {
+            const accessToken = localStorage.getItem('access_token');
+            const playlistId = document.getElementById('playlist-id').value.trim();
+            
+            if (!playlistId) {
+                showMessage('Please enter a playlist ID.', 'error');
+                return;
+            }
+            
+            if (!accessToken) {
+                showMessage('Authentication required. Please log in again.', 'error');
+                return;
+            }
+            
+            fetch(`https://api.spotify.com/v1/playlists/${playlistId}`, {
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`
+                }
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Playlist not found or access denied');
+                }
+                return response.json();
+            })
+            .then(data => {
+                // Display playlist info
+                const playlistDetails = document.getElementById('playlist-details');
+                playlistDetails.innerHTML = `
+                    <div class="playlist-item">
+                        <img class="playlist-image" src="${data.images[0]?.url || '../icon.png'}" alt="Playlist cover">
+                        <div class="playlist-details">
+                            <h4>${data.name}</h4>
+                            <p>By: ${data.owner.display_name}</p>
+                            <p>${data.tracks.total} tracks</p>
+                            <p>Playlist ID: ${data.id}</p>
+                        </div>
+                    </div>
+                `;
+                
+                document.getElementById('playlist-info').style.display = 'block';
+                showMessage('Playlist found!', 'success');
+            })
+            .catch(error => {
+                console.error('Error fetching playlist:', error);
+                showMessage('Error: ' + error.message, 'error');
+            });
+        }
+        
+        function showMessage(text, type) {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = 'message ' + type;
+            messageEl.style.display = 'block';
+            
+            // Hide message after 5 seconds
+            setTimeout(() => {
+                messageEl.style.display = 'none';
+            }, 5000);
+        }
+    </script>
+</body>
+</html> 
